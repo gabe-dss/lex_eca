@@ -14,8 +14,7 @@ deputados <- function(pagina) {
   return(res_cont)
 }
 
-a <- purrr::map_dfr(1:10, ~ {
-  deputados(.x)
+a <- purrr::map_dfr(1:10, ~ {deputados(.x)
 })
 
 ## O objeto "a" armazena todos os dados dos deputados desde 1990

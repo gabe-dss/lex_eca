@@ -64,14 +64,85 @@ get_info_deputado <- function(nome_deputado) {
 
 frame3_cd <- frame3_cd |>
   dplyr::rowwise() |>
-  # Para cada linha, criamos uma coluna temporária com o resultado da API
   dplyr::mutate(info_api = list(get_info_deputado(nome))) |>
-  # Usamos a coluna temporária para atualizar as colunas finais
   dplyr::mutate(partido = info_api$partido,
                 estado = info_api$estado) |>
-  # Removemos a coluna temporária
   dplyr::select(-info_api) |>
-  # Desagrupamos para o dataframe voltar ao normal
   dplyr::ungroup()
 
+# Conseguir Estado e Partido Remanescente
+
+frame3_cd <- frame3_cd |>
+  dplyr::mutate(
+    codDep = NA
+  )
+
+
+
+
+
+
+
+
+get_info_deputado <- function(nome_deputado) {
+  
+  nome_codificado <- utils::URLencode(nome_deputado)
+  
+  url_busca <- paste0("https://dadosabertos.camara.leg.br/api/v2/deputados?nome=",
+                      nome_codificado,
+                      "&ordem=ASC&ordenarPor=nome")
+  
+  Sys.sleep(0.5)
+  
+  id_deputado <- tryCatch({
+    resposta_busca <- httr::GET(url_busca)
+    if (httr::status_code(resposta_busca) != 200) return(NA)
+    
+    dados_busca <- jsonlite::fromJSON(rawToChar(resposta_busca$content))
+    if (length(dados_busca$dados) == 0) return(NA)
+    
+    dados_busca$dados$id[1]
+    
+  }, error = function(e) { NA })
+  
+  if (is.na(id_deputado)) {
+    return(data.frame(id = NA, partido = NA_character_, estado = NA_character_))
+  }
+  
+  url_detalhes <- paste0("https://dadosabertos.camara.leg.br/api/v2/deputados/", id_deputado)
+  
+  Sys.sleep(0.5)
+  
+  tryCatch({
+    resposta_detalhes <- httr::GET(url_detalhes)
+    if (httr::status_code(resposta_detalhes) != 200) {
+      return(data.frame(id = id_deputado, partido = NA_character_, estado = NA_character_))
+    }
+    
+    dados_detalhes <- jsonlite::fromJSON(rawToChar(resposta_detalhes$content))
+    
+    info <- dados_detalhes$dados$ultimoStatus
+    
+    return(data.frame(id = id_deputado, partido = info$siglaPartido, estado = info$siglaUf))
+    
+  }, error = function(e) {
+    return(data.frame(id = id_deputado, partido = NA_character_, estado = NA_character_))
+  })
+}
+
+
 saveRDS(frame3_cd, "frame3_cd.rds")
+
+
+
+
+
+
+
+
+
+
+
+xlsx::write.xlsx(frame3_cd, "C:\\Users\\gabri\\OneDrive\\Área de Trabalho\\cd_teste.xlsx")
+
+frame3_cd <- xlsx::read.xlsx("C:\\Users\\gabri\\OneDrive\\Área de Trabalho\\cd_teste.xlsx", 1)
