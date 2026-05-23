@@ -11,7 +11,13 @@ dados_tipo <- frame4 %>%
     percentual = n / sum(n),
     # --- ALTERAÇÃO AQUI ---
     # Cria um rótulo que combina o número absoluto (n) e o percentual formatado
-    rotulo_completo = paste0(n, " (", scales::percent(percentual, accuracy = 0.1), ")")
+    rotulo_completo = paste0(n, " (", scales::percent(percentual, accuracy = 0.1), ")"),
+    tipo = dplyr::case_when(
+      tipo == "CP" ~ "Comissão",
+      tipo == "SEN" ~ "Senador/a",
+      tipo == "DEP" ~ "Deputado/a",
+      tipo == "EXEC" ~ "Presidência",
+    )
   )
 
 grafico_tipo <- ggplot(dados_tipo, aes(x = reorder(tipo, -n), y = n)) +
@@ -22,8 +28,8 @@ grafico_tipo <- ggplot(dados_tipo, aes(x = reorder(tipo, -n), y = n)) +
   scale_y_continuous(limits = c(0, max(dados_tipo$n) * 1.1)) +
   labs(
     title = " ",
-    x = "Tipo de Legislador",
-    y = "Número de Proposições"
+    x = "Tipo de Legislador/a",
+    y = "Número de Propositores/as"
   ) +
   theme_minimal() +
   theme(plot.title = element_text(size = 18),
@@ -44,7 +50,7 @@ ggsave(
 # -----------------------------------------------------------------
 # Prepara os dados, tratando NA (valores ausentes) como "Não Informado"
 dados_genero <- frame4 %>%
-  mutate(genero = ifelse(is.na(genero), "Não Informado", genero)) %>%
+  mutate(genero = ifelse(is.na(genero), "Não Aplicável", genero)) %>%
   count(genero) %>%
   mutate(
     percentual = n / sum(n),
@@ -91,7 +97,7 @@ grafico_uf <- ggplot(top_10_uf, aes(x = reorder(estado, -n), y = n)) +
   labs(
     title = " ",
     x = "Unidade da Federação",
-    y = "Número de Propositores"
+    y = "Número de Propositores/as"
   ) +
   theme_minimal()
 
@@ -108,3 +114,37 @@ ggsave(
 print(grafico_tipo)
 print(grafico_genero)
 print(grafico_uf)
+
+# 4. Gráfico de Barras: Partidos Políticos (Top 10)
+# ---------------------------------------------------------------------------
+# Filtra os dados para remover partidos ausentes e pega os 10 mais frequentes
+frame4$partido[frame4$partido == "PSBD"] <- "PSDB"
+
+partidos <- frame4 |>
+  dplyr::filter(!is.na(frame4$partido)) |>
+  dplyr::count(partido, sort = TRUE)
+
+# Cria o gráfico
+grafico_partidos <- ggplot(partidos, aes(x = reorder(partido, -n), y = n)) +
+  geom_bar(stat = "identity", fill = "lightgreen", color = "black") +
+  geom_text(aes(label = n), vjust = -0.5, size = 5) +
+  scale_y_continuous(limits = c(0, max(partidos$n) * 1.15)) +
+  labs(
+    title = " ",
+    x = "Partido Político",
+    y = "Número de Propositores/as"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 18),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1))
+
+# Salvar o gráfico
+ggsave(
+  "GRAF/grafico_top10_partidos_FHD.png",
+  plot = grafico_partidos,
+  width = 1920,
+  height = 1080,
+  units = "px"
+)
